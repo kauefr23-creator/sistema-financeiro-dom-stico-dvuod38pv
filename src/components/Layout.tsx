@@ -23,6 +23,7 @@ import { TransactionForm } from '@/components/transactions/TransactionForm'
 import { IncomeForm } from '@/components/incomes/IncomeForm'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
+import { ShareAccess } from '@/components/ShareAccess'
 
 export default function Layout() {
   const { currentDate, setCurrentDate } = useFinance()
@@ -43,12 +44,14 @@ export default function Layout() {
             </div>
 
             <div className="flex items-center gap-2 md:gap-4">
+              <ShareAccess />
+
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
                     className={cn(
-                      'w-[200px] justify-start text-left font-normal',
+                      'w-[180px] md:w-[200px] justify-start text-left font-normal hidden sm:flex',
                       !currentDate && 'text-muted-foreground',
                     )}
                   >

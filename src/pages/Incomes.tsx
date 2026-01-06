@@ -14,7 +14,7 @@ import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog'
 import { IncomeForm } from '@/components/incomes/IncomeForm'
 import { format, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { Trash2, Plus } from 'lucide-react'
+import { Trash2, Plus, Edit2 } from 'lucide-react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,11 +26,23 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
+import { Income } from '@/lib/types'
 
 export default function Incomes() {
   const { getFilteredIncomes, deleteIncome } = useFinance()
   const incomes = getFilteredIncomes()
   const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [editingIncome, setEditingIncome] = useState<Income | null>(null)
+
+  const handleEdit = (income: Income) => {
+    setEditingIncome(income)
+    setIsDialogOpen(true)
+  }
+
+  const handleCloseDialog = () => {
+    setIsDialogOpen(false)
+    setEditingIncome(null)
+  }
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -38,12 +50,15 @@ export default function Incomes() {
         <h2 className="text-3xl font-bold tracking-tight">Receitas</h2>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
-            <Button>
+            <Button onClick={() => setEditingIncome(null)}>
               <Plus className="mr-2 h-4 w-4" /> Nova Receita
             </Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-[500px]">
-            <IncomeForm onSuccess={() => setIsDialogOpen(false)} />
+            <IncomeForm
+              onSuccess={handleCloseDialog}
+              initialData={editingIncome || undefined}
+            />
           </DialogContent>
         </Dialog>
       </div>
@@ -89,34 +104,43 @@ export default function Incomes() {
                       })}
                     </TableCell>
                     <TableCell className="text-right">
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="text-red-500 hover:text-red-600"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Tem certeza?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Esta ação não pode ser desfeita.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                            <AlertDialogAction
-                              onClick={() => deleteIncome(income.id)}
-                              className="bg-red-500 hover:bg-red-600"
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleEdit(income)}
+                        >
+                          <Edit2 className="h-4 w-4" />
+                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="text-red-500 hover:text-red-600"
                             >
-                              Excluir
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Tem certeza?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Esta ação não pode ser desfeita.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => deleteIncome(income.id)}
+                                className="bg-red-500 hover:bg-red-600"
+                              >
+                                Excluir
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))

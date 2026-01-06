@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react'
+import React, { createContext, useContext, useState } from 'react'
 import {
   Transaction,
   Income,
@@ -6,8 +6,9 @@ import {
   Account,
   TransactionFormValues,
   IncomeFormValues,
+  CategoryFormValues,
 } from '@/lib/types'
-import { startOfMonth, isSameMonth, parseISO } from 'date-fns'
+import { isSameMonth, parseISO } from 'date-fns'
 
 interface FinanceContextType {
   transactions: Transaction[]
@@ -21,10 +22,13 @@ interface FinanceContextType {
   deleteTransaction: (id: string) => void
   toggleTransactionStatus: (id: string) => void
   addIncome: (data: IncomeFormValues) => void
+  updateIncome: (id: string, data: IncomeFormValues) => void
   deleteIncome: (id: string) => void
-  addCategory: (category: Omit<Category, 'id'>) => void
+  addCategory: (category: CategoryFormValues) => void
+  updateCategory: (id: string, category: CategoryFormValues) => void
   deleteCategory: (id: string) => void
   addAccount: (name: string) => void
+  updateAccount: (id: string, name: string) => void
   deleteAccount: (id: string) => void
   getFilteredTransactions: () => Transaction[]
   getFilteredIncomes: () => Income[]
@@ -175,16 +179,36 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({
     setIncomes((prev) => [...prev, newIncome])
   }
 
+  const updateIncome = (id: string, data: IncomeFormValues) => {
+    setIncomes((prev) =>
+      prev.map((i) =>
+        i.id === id
+          ? {
+              ...i,
+              ...data,
+              date: data.date.toISOString(),
+            }
+          : i,
+      ),
+    )
+  }
+
   const deleteIncome = (id: string) => {
     setIncomes((prev) => prev.filter((i) => i.id !== id))
   }
 
-  const addCategory = (category: Omit<Category, 'id'>) => {
+  const addCategory = (category: CategoryFormValues) => {
     const newCategory = {
       ...category,
       id: Math.random().toString(36).substr(2, 9),
     }
     setCategories((prev) => [...prev, newCategory])
+  }
+
+  const updateCategory = (id: string, category: CategoryFormValues) => {
+    setCategories((prev) =>
+      prev.map((c) => (c.id === id ? { ...c, ...category } : c)),
+    )
   }
 
   const deleteCategory = (id: string) => {
@@ -197,6 +221,10 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({
       name,
     }
     setAccounts((prev) => [...prev, newAccount])
+  }
+
+  const updateAccount = (id: string, name: string) => {
+    setAccounts((prev) => prev.map((a) => (a.id === id ? { ...a, name } : a)))
   }
 
   const deleteAccount = (id: string) => {
@@ -218,10 +246,13 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({
         deleteTransaction,
         toggleTransactionStatus,
         addIncome,
+        updateIncome,
         deleteIncome,
         addCategory,
+        updateCategory,
         deleteCategory,
         addAccount,
+        updateAccount,
         deleteAccount,
         getFilteredTransactions,
         getFilteredIncomes,

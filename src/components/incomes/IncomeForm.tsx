@@ -1,6 +1,6 @@
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { incomeSchema, IncomeFormValues } from '@/lib/types'
+import { incomeSchema, IncomeFormValues, Income } from '@/lib/types'
 import {
   Form,
   FormControl,
@@ -32,23 +32,28 @@ import { ptBR } from 'date-fns/locale'
 
 interface IncomeFormProps {
   onSuccess: () => void
+  initialData?: Income
 }
 
-export function IncomeForm({ onSuccess }: IncomeFormProps) {
-  const { addIncome } = useFinance()
+export function IncomeForm({ onSuccess, initialData }: IncomeFormProps) {
+  const { addIncome, updateIncome } = useFinance()
 
   const form = useForm<IncomeFormValues>({
     resolver: zodResolver(incomeSchema),
     defaultValues: {
-      source: 'Salário',
-      description: '',
-      amount: 0,
-      date: new Date(),
+      source: initialData?.source || 'Salário',
+      description: initialData?.description || '',
+      amount: initialData?.amount || 0,
+      date: initialData?.date ? new Date(initialData.date) : new Date(),
     },
   })
 
   const onSubmit = (data: IncomeFormValues) => {
-    addIncome(data)
+    if (initialData) {
+      updateIncome(initialData.id, data)
+    } else {
+      addIncome(data)
+    }
     onSuccess()
   }
 
@@ -56,10 +61,12 @@ export function IncomeForm({ onSuccess }: IncomeFormProps) {
     <div className="grid gap-4 py-4">
       <div className="flex flex-col space-y-1.5 text-center sm:text-left">
         <h2 className="text-lg font-semibold leading-none tracking-tight">
-          Nova Receita
+          {initialData ? 'Editar Receita' : 'Nova Receita'}
         </h2>
         <p className="text-sm text-muted-foreground">
-          Adicione uma nova fonte de renda.
+          {initialData
+            ? 'Atualize os detalhes da receita.'
+            : 'Adicione uma nova fonte de renda.'}
         </p>
       </div>
       <Form {...form}>
@@ -166,7 +173,7 @@ export function IncomeForm({ onSuccess }: IncomeFormProps) {
           </div>
 
           <Button type="submit" className="w-full">
-            Adicionar Receita
+            {initialData ? 'Salvar Alterações' : 'Adicionar Receita'}
           </Button>
         </form>
       </Form>
