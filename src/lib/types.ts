@@ -75,6 +75,7 @@ export interface ActivityLog {
     | 'invite'
     | 'sync'
     | 'export'
+    | 'password_reset'
   entity:
     | 'Transaction'
     | 'Income'

@@ -63,6 +63,8 @@ interface FinanceContextType {
     action: 'view' | 'edit' | 'admin',
     resource?: string,
   ) => boolean
+  resetUserPassword: (userId: string) => string | null
+  sendPasswordResetLink: (email: string) => void
 }
 
 const FinanceContext = createContext<FinanceContextType | undefined>(undefined)
@@ -781,6 +783,30 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({
     toast.success('Download do log iniciado')
   }
 
+  const resetUserPassword = (userId: string): string | null => {
+    if (!checkPermission('admin')) return null
+    const user = users.find((u) => u.id === userId)
+    if (!user) return null
+
+    // Simulate password generation
+    const tempPassword = Math.random().toString(36).slice(-8).toUpperCase()
+    logAction(
+      'password_reset',
+      'User',
+      `Manual password reset for ${user.email}`,
+    )
+    return tempPassword
+  }
+
+  const sendPasswordResetLink = (email: string) => {
+    if (!checkPermission('admin')) return
+    logAction('password_reset', 'User', `Sent password reset link to ${email}`)
+    // Simulate email dispatch
+    setTimeout(() => {
+      toast.success(`Link de recuperação enviado para ${email}`)
+    }, 500)
+  }
+
   return React.createElement(
     FinanceContext.Provider,
     {
@@ -826,6 +852,8 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({
         register,
         logout,
         checkPermission,
+        resetUserPassword,
+        sendPasswordResetLink,
       },
     },
     children,
