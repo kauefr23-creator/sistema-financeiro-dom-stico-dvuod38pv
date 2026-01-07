@@ -26,9 +26,11 @@ import { cn } from '@/lib/utils'
 import { ShareAccess } from '@/components/ShareAccess'
 
 export default function Layout() {
-  const { currentDate, setCurrentDate } = useFinance()
+  const { currentDate, setCurrentDate, checkPermission } = useFinance()
   const [isTransactionOpen, setIsTransactionOpen] = useState(false)
   const [isIncomeOpen, setIsIncomeOpen] = useState(false)
+
+  const canEdit = checkPermission('edit')
 
   return (
     <SidebarProvider>
@@ -73,22 +75,26 @@ export default function Layout() {
                 </PopoverContent>
               </Popover>
 
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button size="icon" className="rounded-full">
-                    <Plus className="h-5 w-5" />
-                    <span className="sr-only">Adicionar</span>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => setIsTransactionOpen(true)}>
-                    Nova Transação
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setIsIncomeOpen(true)}>
-                    Nova Receita
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              {canEdit && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button size="icon" className="rounded-full">
+                      <Plus className="h-5 w-5" />
+                      <span className="sr-only">Adicionar</span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem
+                      onClick={() => setIsTransactionOpen(true)}
+                    >
+                      Nova Transação
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setIsIncomeOpen(true)}>
+                      Nova Receita
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
             </div>
           </header>
 

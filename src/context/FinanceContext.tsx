@@ -11,6 +11,9 @@ import {
   Company,
   LoginFormValues,
   RegisterFormValues,
+  Invitation,
+  ActivityLog,
+  InviteFormValues,
 } from '@/lib/types'
 import { isSameMonth, parseISO } from 'date-fns'
 import { toast } from 'sonner'
@@ -21,6 +24,9 @@ interface FinanceContextType {
   categories: Category[]
   accounts: Account[]
   companies: Company[]
+  users: User[]
+  invitations: Invitation[]
+  activityLogs: ActivityLog[]
   currentDate: Date
   currentUser: User | null
   setCurrentDate: (date: Date) => void
@@ -37,11 +43,17 @@ interface FinanceContextType {
   addAccount: (name: string) => void
   updateAccount: (id: string, name: string) => void
   deleteAccount: (id: string) => void
+  sendInvitation: (data: InviteFormValues) => void
+  deleteInvitation: (id: string) => void
   getFilteredTransactions: () => Transaction[]
   getFilteredIncomes: () => Income[]
   login: (data: LoginFormValues) => Promise<User | null>
   register: (data: RegisterFormValues) => Promise<boolean>
   logout: () => void
+  checkPermission: (
+    action: 'view' | 'edit' | 'admin',
+    resource?: string,
+  ) => boolean
 }
 
 const FinanceContext = createContext<FinanceContextType | undefined>(undefined)
@@ -55,26 +67,34 @@ const INITIAL_COMPANIES: Company[] = [
 const INITIAL_USERS: (User & { password: string })[] = [
   {
     id: '1',
-    name: 'Usuário Padrão',
-    email: 'user@demo.com',
+    name: 'Usuário Admin',
+    email: 'admin@demo.com',
     password: 'password',
-    role: 'user',
+    role: 'admin',
     companyId: '1',
   },
   {
     id: '2',
-    name: 'Master Admin',
-    email: 'admin@demo.com',
+    name: 'Master User',
+    email: 'master@demo.com',
     password: 'password',
     role: 'master',
   },
   {
     id: '3',
-    name: 'Outro Usuário',
-    email: 'other@demo.com',
+    name: 'Editor User',
+    email: 'editor@demo.com',
     password: 'password',
-    role: 'user',
-    companyId: '2',
+    role: 'editor',
+    companyId: '1',
+  },
+  {
+    id: '4',
+    name: 'Viewer User',
+    email: 'viewer@demo.com',
+    password: 'password',
+    role: 'viewer',
+    companyId: '1',
   },
 ]
 
@@ -202,12 +222,39 @@ const INITIAL_INCOMES: Income[] = [
   },
 ]
 
+const INITIAL_INVITATIONS: Invitation[] = [
+  {
+    id: '1',
+    email: 'newuser@demo.com',
+    role: 'viewer',
+    companyId: '1',
+    status: 'pending',
+    date: new Date().toISOString(),
+  },
+]
+
+const INITIAL_LOGS: ActivityLog[] = [
+  {
+    id: '1',
+    userId: '1',
+    userName: 'Usuário Admin',
+    action: 'create',
+    entity: 'Transaction',
+    details: 'Created Supermercado Mensal',
+    timestamp: new Date().toISOString(),
+    companyId: '1',
+  },
+]
+
 export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const [users, setUsers] = useState(INITIAL_USERS)
   const [companies, setCompanies] = useState<Company[]>(INITIAL_COMPANIES)
   const [currentUser, setCurrentUser] = useState<User | null>(null)
+  const [invitations, setInvitations] =
+    useState<Invitation[]>(INITIAL_INVITATIONS)
+  const [activityLogs, setActivityLogs] = useState<ActivityLog[]>(INITIAL_LOGS)
 
   const [transactions, setTransactions] =
     useState<Transaction[]>(INITIAL_TRANSACTIONS)
@@ -215,6 +262,39 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({
   const [categories, setCategories] = useState<Category[]>(INITIAL_CATEGORIES)
   const [accounts, setAccounts] = useState<Account[]>(INITIAL_ACCOUNTS)
   const [currentDate, setCurrentDate] = useState<Date>(new Date())
+
+  // Helpers
+  const logAction = (
+    action: ActivityLog['action'],
+    entity: ActivityLog['entity'],
+    details: string,
+  ) => {
+    if (!currentUser) return
+    const newLog: ActivityLog = {
+      id: Math.random().toString(36).substr(2, 9),
+      userId: currentUser.id,
+      userName: currentUser.name,
+      action,
+      entity,
+      details,
+      timestamp: new Date().toISOString(),
+      companyId: currentUser.companyId || 'master', // Fallback for master
+    }
+    setActivityLogs((prev) => [newLog, ...prev])
+  }
+
+  const checkPermission = (
+    action: 'view' | 'edit' | 'admin',
+    resource?: string,
+  ): boolean => {
+    if (!currentUser) return false
+    if (currentUser.role === 'master') return true
+    if (currentUser.role === 'admin') return true
+    if (action === 'view') return true
+    if (action === 'edit' && currentUser.role === 'editor') return true
+    // Viewer can only view
+    return false
+  }
 
   // Authentication
   const login = async (data: LoginFormValues): Promise<User | null> => {
@@ -225,6 +305,8 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { password, ...safeUser } = user
       setCurrentUser(safeUser)
+      // We don't log login here because logAction needs currentUser state which is not updated immediately in this scope
+      // In a real app we'd use useEffect or a callback
       toast.success(`Bem-vindo, ${user.name}!`)
       return safeUser
     }
@@ -249,7 +331,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({
       name: data.name,
       email: data.email,
       password: data.password,
-      role: 'user' as const,
+      role: 'admin' as const, // Creator is admin
       companyId: newCompanyId,
     }
 
@@ -269,14 +351,17 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({
     toast.info('Você saiu do sistema')
   }
 
-  // Helper filters
+  // Filters
   const getFilteredTransactions = () => {
     if (!currentUser) return []
-    // Master sees all transactions if they are in standard view?
-    // User story says: Standard users restricted. Master sees consolidated.
-    // For standard pages reuse, if master is logged in without specific company context, return all?
-    // Let's restrict standard view to current company. If Master, they might need to use Dashboard.
-    // But for demo purposes, if Master has no companyId, they see nothing in standard views.
+    // Master views logic handles in Dashboard, here standard view is restricted
+    if (currentUser.role === 'master' && !currentUser.companyId) {
+      // If master is not "simulating" a company, return empty or filtered by selected company in dashboard
+      // For general views (Transactions/Incomes pages), better to return nothing or all if desired
+      // Let's assume Master uses MasterDashboard for global view
+      return []
+    }
+
     return transactions.filter(
       (t) =>
         t.companyId === currentUser.companyId &&
@@ -286,6 +371,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const getFilteredIncomes = () => {
     if (!currentUser) return []
+    if (currentUser.role === 'master' && !currentUser.companyId) return []
     return incomes.filter(
       (i) =>
         i.companyId === currentUser.companyId &&
@@ -293,7 +379,6 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({
     )
   }
 
-  // Filtered lists for selection
   const filteredCategories = categories.filter(
     (c) => c.companyId === currentUser?.companyId,
   )
@@ -301,8 +386,9 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({
     (a) => a.companyId === currentUser?.companyId,
   )
 
+  // Actions
   const addTransaction = (data: TransactionFormValues) => {
-    if (!currentUser?.companyId) return
+    if (!currentUser?.companyId || !checkPermission('edit')) return
     const newTransaction: Transaction = {
       id: Math.random().toString(36).substr(2, 9),
       name: data.name,
@@ -316,9 +402,12 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({
       companyId: currentUser.companyId,
     }
     setTransactions((prev) => [...prev, newTransaction])
+    logAction('create', 'Transaction', `Created transaction "${data.name}"`)
+    toast.success('Transação criada')
   }
 
   const updateTransaction = (id: string, data: TransactionFormValues) => {
+    if (!checkPermission('edit')) return
     setTransactions((prev) =>
       prev.map((t) =>
         t.id === id
@@ -331,13 +420,21 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({
           : t,
       ),
     )
+    logAction('update', 'Transaction', `Updated transaction "${data.name}"`)
+    toast.success('Transação atualizada')
   }
 
   const deleteTransaction = (id: string) => {
+    if (!checkPermission('edit')) return
+    const tx = transactions.find((t) => t.id === id)
     setTransactions((prev) => prev.filter((t) => t.id !== id))
+    logAction('delete', 'Transaction', `Deleted transaction "${tx?.name}"`)
+    toast.success('Transação removida')
   }
 
   const toggleTransactionStatus = (id: string) => {
+    if (!checkPermission('edit')) return
+    const tx = transactions.find((t) => t.id === id)
     setTransactions((prev) =>
       prev.map((t) => {
         if (t.id === id) {
@@ -352,10 +449,11 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({
         return t
       }),
     )
+    logAction('update', 'Transaction', `Toggled status for "${tx?.name}"`)
   }
 
   const addIncome = (data: IncomeFormValues) => {
-    if (!currentUser?.companyId) return
+    if (!currentUser?.companyId || !checkPermission('edit')) return
     const newIncome: Income = {
       id: Math.random().toString(36).substr(2, 9),
       source: data.source,
@@ -365,9 +463,12 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({
       companyId: currentUser.companyId,
     }
     setIncomes((prev) => [...prev, newIncome])
+    logAction('create', 'Income', `Created income "${data.source}"`)
+    toast.success('Receita adicionada')
   }
 
   const updateIncome = (id: string, data: IncomeFormValues) => {
+    if (!checkPermission('edit')) return
     setIncomes((prev) =>
       prev.map((i) =>
         i.id === id
@@ -379,48 +480,95 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({
           : i,
       ),
     )
+    logAction('update', 'Income', `Updated income "${data.source}"`)
+    toast.success('Receita atualizada')
   }
 
   const deleteIncome = (id: string) => {
+    if (!checkPermission('edit')) return
+    const inc = incomes.find((i) => i.id === id)
     setIncomes((prev) => prev.filter((i) => i.id !== id))
+    logAction('delete', 'Income', `Deleted income "${inc?.source}"`)
+    toast.success('Receita removida')
   }
 
   const addCategory = (category: CategoryFormValues) => {
-    if (!currentUser?.companyId) return
+    if (!currentUser?.companyId || !checkPermission('edit')) return
     const newCategory = {
       ...category,
       id: Math.random().toString(36).substr(2, 9),
       companyId: currentUser.companyId,
     }
     setCategories((prev) => [...prev, newCategory])
+    logAction('create', 'Category', `Created category "${category.name}"`)
+    toast.success('Categoria criada')
   }
 
   const updateCategory = (id: string, category: CategoryFormValues) => {
+    if (!checkPermission('edit')) return
     setCategories((prev) =>
       prev.map((c) => (c.id === id ? { ...c, ...category } : c)),
     )
+    logAction('update', 'Category', `Updated category "${category.name}"`)
+    toast.success('Categoria atualizada')
   }
 
   const deleteCategory = (id: string) => {
+    if (!checkPermission('edit')) return
+    const cat = categories.find((c) => c.id === id)
     setCategories((prev) => prev.filter((c) => c.id !== id))
+    logAction('delete', 'Category', `Deleted category "${cat?.name}"`)
+    toast.success('Categoria removida')
   }
 
   const addAccount = (name: string) => {
-    if (!currentUser?.companyId) return
+    if (!currentUser?.companyId || !checkPermission('edit')) return
     const newAccount = {
       id: Math.random().toString(36).substr(2, 9),
       name,
       companyId: currentUser.companyId,
     }
     setAccounts((prev) => [...prev, newAccount])
+    logAction('create', 'Account', `Created account "${name}"`)
+    toast.success('Conta criada')
   }
 
   const updateAccount = (id: string, name: string) => {
+    if (!checkPermission('edit')) return
     setAccounts((prev) => prev.map((a) => (a.id === id ? { ...a, name } : a)))
+    logAction('update', 'Account', `Updated account "${name}"`)
+    toast.success('Conta atualizada')
   }
 
   const deleteAccount = (id: string) => {
+    if (!checkPermission('edit')) return
+    const acc = accounts.find((a) => a.id === id)
     setAccounts((prev) => prev.filter((a) => a.id !== id))
+    logAction('delete', 'Account', `Deleted account "${acc?.name}"`)
+    toast.success('Conta removida')
+  }
+
+  const sendInvitation = (data: InviteFormValues) => {
+    if (!currentUser?.companyId || !checkPermission('admin')) return
+    const newInvite: Invitation = {
+      id: Math.random().toString(36).substr(2, 9),
+      email: data.email,
+      role: data.role,
+      companyId: currentUser.companyId,
+      status: 'pending',
+      date: new Date().toISOString(),
+    }
+    setInvitations((prev) => [...prev, newInvite])
+    logAction('invite', 'Invitation', `Invited ${data.email} as ${data.role}`)
+    toast.success('Convite enviado com sucesso')
+  }
+
+  const deleteInvitation = (id: string) => {
+    if (!checkPermission('admin')) return
+    const inv = invitations.find((i) => i.id === id)
+    setInvitations((prev) => prev.filter((i) => i.id !== id))
+    logAction('delete', 'Invitation', `Revoked invitation for ${inv?.email}`)
+    toast.success('Convite removido')
   }
 
   return React.createElement(
@@ -432,6 +580,9 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({
         categories: filteredCategories,
         accounts: filteredAccounts,
         companies,
+        users,
+        invitations,
+        activityLogs,
         currentDate,
         currentUser,
         setCurrentDate,
@@ -448,11 +599,14 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({
         addAccount,
         updateAccount,
         deleteAccount,
+        sendInvitation,
+        deleteInvitation,
         getFilteredTransactions,
         getFilteredIncomes,
         login,
         register,
         logout,
+        checkPermission,
       },
     },
     children,

@@ -14,7 +14,10 @@ import { format, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 
 export function UpcomingTransactions() {
-  const { transactions, toggleTransactionStatus } = useFinance()
+  const { transactions, toggleTransactionStatus, checkPermission } =
+    useFinance()
+
+  const canEdit = checkPermission('edit')
 
   // Filter pending transactions and sort by due date
   const upcoming = transactions
@@ -52,7 +55,7 @@ export function UpcomingTransactions() {
               <TableHead>Nome</TableHead>
               <TableHead>Vencimento</TableHead>
               <TableHead className="text-right">Valor</TableHead>
-              <TableHead className="text-right">Ação</TableHead>
+              {canEdit && <TableHead className="text-right">Ação</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -75,16 +78,18 @@ export function UpcomingTransactions() {
                     currency: 'BRL',
                   })}
                 </TableCell>
-                <TableCell className="text-right">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-8 border-emerald-500 text-emerald-600 hover:bg-emerald-50"
-                    onClick={() => toggleTransactionStatus(transaction.id)}
-                  >
-                    Pagar
-                  </Button>
-                </TableCell>
+                {canEdit && (
+                  <TableCell className="text-right">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-8 border-emerald-500 text-emerald-600 hover:bg-emerald-50"
+                      onClick={() => toggleTransactionStatus(transaction.id)}
+                    >
+                      Pagar
+                    </Button>
+                  </TableCell>
+                )}
               </TableRow>
             ))}
           </TableBody>

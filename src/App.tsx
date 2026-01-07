@@ -11,6 +11,8 @@ import NotFound from './pages/NotFound'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import MasterDashboard from './pages/MasterDashboard'
+import UsersInvites from './pages/UsersInvites'
+import ActivityLogs from './pages/ActivityLogs'
 import { FinanceProvider } from './context/FinanceContext'
 import { ProtectedRoute } from './components/ProtectedRoute'
 
@@ -40,6 +42,8 @@ const App = () => (
               path="/categories-accounts"
               element={<CategoriesAccounts />}
             />
+            <Route path="/users" element={<UsersInvites />} />
+            <Route path="/logs" element={<ActivityLogs />} />
             <Route
               path="/master"
               element={

@@ -15,10 +15,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog'
 import { TransactionForm } from '@/components/transactions/TransactionForm'
 import { format, parseISO } from 'date-fns'
@@ -44,6 +43,7 @@ export default function Transactions() {
     accounts,
     deleteTransaction,
     toggleTransactionStatus,
+    checkPermission,
   } = useFinance()
   const transactions = getFilteredTransactions()
 
@@ -53,6 +53,8 @@ export default function Transactions() {
   const [editingTransaction, setEditingTransaction] =
     useState<Transaction | null>(null)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
+
+  const canEdit = checkPermission('edit')
 
   const filteredTransactions = transactions.filter((t) => {
     const matchesCategory =
@@ -69,6 +71,7 @@ export default function Transactions() {
     accounts.find((a) => a.id === id)?.name || 'Desconhecida'
 
   const handleEdit = (transaction: Transaction) => {
+    if (!canEdit) return
     setEditingTransaction(transaction)
     setIsDialogOpen(true)
   }
@@ -82,19 +85,21 @@ export default function Transactions() {
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <h2 className="text-3xl font-bold tracking-tight">Transações</h2>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button onClick={() => setEditingTransaction(null)}>
-              <Plus className="mr-2 h-4 w-4" /> Nova Transação
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[500px]">
-            <TransactionForm
-              onSuccess={handleCloseDialog}
-              initialData={editingTransaction || undefined}
-            />
-          </DialogContent>
-        </Dialog>
+        {canEdit && (
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogTrigger asChild>
+              <Button onClick={() => setEditingTransaction(null)}>
+                <Plus className="mr-2 h-4 w-4" /> Nova Transação
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[500px]">
+              <TransactionForm
+                onSuccess={handleCloseDialog}
+                initialData={editingTransaction || undefined}
+              />
+            </DialogContent>
+          </Dialog>
+        )}
       </div>
 
       <div className="flex flex-col sm:flex-row gap-4">
@@ -149,13 +154,16 @@ export default function Transactions() {
                 <TableHead>Vencimento</TableHead>
                 <TableHead>Valor</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead className="text-right">Ações</TableHead>
+                {canEdit && <TableHead className="text-right">Ações</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredTransactions.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center h-24">
+                  <TableCell
+                    colSpan={canEdit ? 7 : 6}
+                    className="text-center h-24"
+                  >
                     Nenhuma transação encontrada.
                   </TableCell>
                 </TableRow>
@@ -181,8 +189,12 @@ export default function Transactions() {
                     </TableCell>
                     <TableCell>
                       <div
-                        className="flex items-center cursor-pointer"
-                        onClick={() => toggleTransactionStatus(t.id)}
+                        className={
+                          canEdit
+                            ? 'flex items-center cursor-pointer'
+                            : 'flex items-center'
+                        }
+                        onClick={() => canEdit && toggleTransactionStatus(t.id)}
                       >
                         {t.status === 'paid' ? (
                           <Badge
@@ -198,46 +210,50 @@ export default function Transactions() {
                         )}
                       </div>
                     </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleEdit(t)}
-                        >
-                          <Edit2 className="h-4 w-4" />
-                        </Button>
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="text-red-500 hover:text-red-600"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Tem certeza?</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Esta ação não pode ser desfeita. Isso excluirá
-                                permanentemente a transação.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                              <AlertDialogAction
-                                onClick={() => deleteTransaction(t.id)}
-                                className="bg-red-500 hover:bg-red-600"
+                    {canEdit && (
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleEdit(t)}
+                          >
+                            <Edit2 className="h-4 w-4" />
+                          </Button>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="text-red-500 hover:text-red-600"
                               >
-                                Excluir
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </div>
-                    </TableCell>
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>
+                                  Tem certeza?
+                                </AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Esta ação não pode ser desfeita. Isso excluirá
+                                  permanentemente a transação.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => deleteTransaction(t.id)}
+                                  className="bg-red-500 hover:bg-red-600"
+                                >
+                                  Excluir
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))
               )}

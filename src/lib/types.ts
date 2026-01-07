@@ -1,7 +1,7 @@
 import { z } from 'zod'
 
 export type TransactionStatus = 'paid' | 'pending'
-export type Role = 'master' | 'admin' | 'user'
+export type Role = 'master' | 'admin' | 'editor' | 'viewer'
 
 export interface Company {
   id: string
@@ -54,6 +54,32 @@ export interface Income {
   companyId: string
 }
 
+export interface Invitation {
+  id: string
+  email: string
+  role: Role
+  companyId: string
+  status: 'pending' | 'accepted'
+  date: string
+}
+
+export interface ActivityLog {
+  id: string
+  userId: string
+  userName: string
+  action: 'create' | 'update' | 'delete' | 'login' | 'invite'
+  entity:
+    | 'Transaction'
+    | 'Income'
+    | 'Category'
+    | 'Account'
+    | 'User'
+    | 'Invitation'
+  details: string
+  timestamp: string
+  companyId: string
+}
+
 export const transactionSchema = z.object({
   name: z.string().min(1, 'Nome é obrigatório'),
   amount: z.coerce.number().min(0.01, 'Valor deve ser maior que zero'),
@@ -100,3 +126,10 @@ export const registerSchema = z.object({
 })
 
 export type RegisterFormValues = z.infer<typeof registerSchema>
+
+export const inviteSchema = z.object({
+  email: z.string().email('Email inválido'),
+  role: z.enum(['admin', 'editor', 'viewer'] as const),
+})
+
+export type InviteFormValues = z.infer<typeof inviteSchema>

@@ -10,7 +10,6 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
-  useSidebar,
 } from '@/components/ui/sidebar'
 import {
   LayoutDashboard,
@@ -20,6 +19,8 @@ import {
   Wallet,
   LogOut,
   ShieldAlert,
+  Users,
+  History,
 } from 'lucide-react'
 import { Link, useLocation } from 'react-router-dom'
 import { useFinance } from '@/context/FinanceContext'
@@ -30,27 +31,33 @@ const items = [
     title: 'Dashboard',
     url: '/',
     icon: LayoutDashboard,
+    roles: ['admin', 'editor', 'viewer', 'master'],
   },
   {
     title: 'Transações',
     url: '/transactions',
     icon: Receipt,
+    roles: ['admin', 'editor', 'viewer', 'master'],
   },
   {
     title: 'Receitas',
     url: '/incomes',
     icon: PiggyBank,
+    roles: ['admin', 'editor', 'viewer', 'master'],
   },
   {
     title: 'Categorias & Contas',
     url: '/categories-accounts',
     icon: Settings2,
+    roles: ['admin', 'editor', 'viewer', 'master'],
   },
 ]
 
 export function AppSidebar() {
   const location = useLocation()
-  const { currentUser, logout } = useFinance()
+  const { currentUser, logout, checkPermission } = useFinance()
+
+  const canManageUsers = checkPermission('admin')
 
   return (
     <Sidebar collapsible="icon" className="border-r">
@@ -104,6 +111,34 @@ export function AppSidebar() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
+
+              {canManageUsers && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={location.pathname === '/users'}
+                    tooltip="Usuários"
+                  >
+                    <Link to="/users">
+                      <Users className="h-4 w-4" />
+                      <span>Usuários</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
+
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  isActive={location.pathname === '/logs'}
+                  tooltip="Logs de Atividade"
+                >
+                  <Link to="/logs">
+                    <History className="h-4 w-4" />
+                    <span>Logs de Atividade</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
@@ -115,6 +150,9 @@ export function AppSidebar() {
               {currentUser?.name}
             </p>
             <p className="truncate">{currentUser?.email}</p>
+            <p className="text-[10px] uppercase font-bold mt-1 text-primary/70">
+              {currentUser?.role}
+            </p>
           </div>
           <Button
             variant="outline"

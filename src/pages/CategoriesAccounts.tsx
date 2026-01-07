@@ -3,7 +3,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useFinance } from '@/context/FinanceContext'
 import { Progress } from '@/components/ui/progress'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Trash2, Plus } from 'lucide-react'
 import {
@@ -27,6 +26,7 @@ export default function CategoriesAccounts() {
     deleteCategory,
     addAccount,
     deleteAccount,
+    checkPermission,
   } = useFinance()
 
   const [newCategory, setNewCategory] = useState({
@@ -37,6 +37,8 @@ export default function CategoriesAccounts() {
   const [newAccount, setNewAccount] = useState('')
   const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState(false)
   const [isAccountDialogOpen, setIsAccountDialogOpen] = useState(false)
+
+  const canEdit = checkPermission('edit')
 
   const handleAddCategory = () => {
     if (!newCategory.name || !newCategory.budget) return
@@ -85,63 +87,68 @@ export default function CategoriesAccounts() {
         <TabsContent value="categories" className="mt-6">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-xl font-semibold">Orçamento por Categoria</h3>
-            <Dialog
-              open={isCategoryDialogOpen}
-              onOpenChange={setIsCategoryDialogOpen}
-            >
-              <DialogTrigger asChild>
-                <Button size="sm">
-                  <Plus className="mr-2 h-4 w-4" /> Nova Categoria
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Adicionar Categoria</DialogTitle>
-                </DialogHeader>
-                <div className="grid gap-4 py-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="name">Nome</Label>
-                    <Input
-                      id="name"
-                      value={newCategory.name}
-                      onChange={(e) =>
-                        setNewCategory({ ...newCategory, name: e.target.value })
-                      }
-                    />
+            {canEdit && (
+              <Dialog
+                open={isCategoryDialogOpen}
+                onOpenChange={setIsCategoryDialogOpen}
+              >
+                <DialogTrigger asChild>
+                  <Button size="sm">
+                    <Plus className="mr-2 h-4 w-4" /> Nova Categoria
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Adicionar Categoria</DialogTitle>
+                  </DialogHeader>
+                  <div className="grid gap-4 py-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="name">Nome</Label>
+                      <Input
+                        id="name"
+                        value={newCategory.name}
+                        onChange={(e) =>
+                          setNewCategory({
+                            ...newCategory,
+                            name: e.target.value,
+                          })
+                        }
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="budget">Orçamento Esperado</Label>
+                      <Input
+                        id="budget"
+                        type="number"
+                        value={newCategory.budget}
+                        onChange={(e) =>
+                          setNewCategory({
+                            ...newCategory,
+                            budget: e.target.value,
+                          })
+                        }
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="color">Cor</Label>
+                      <Input
+                        id="color"
+                        type="color"
+                        value={newCategory.color}
+                        onChange={(e) =>
+                          setNewCategory({
+                            ...newCategory,
+                            color: e.target.value,
+                          })
+                        }
+                        className="h-10 p-1 w-full"
+                      />
+                    </div>
+                    <Button onClick={handleAddCategory}>Salvar</Button>
                   </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="budget">Orçamento Esperado</Label>
-                    <Input
-                      id="budget"
-                      type="number"
-                      value={newCategory.budget}
-                      onChange={(e) =>
-                        setNewCategory({
-                          ...newCategory,
-                          budget: e.target.value,
-                        })
-                      }
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="color">Cor</Label>
-                    <Input
-                      id="color"
-                      type="color"
-                      value={newCategory.color}
-                      onChange={(e) =>
-                        setNewCategory({
-                          ...newCategory,
-                          color: e.target.value,
-                        })
-                      }
-                      className="h-10 p-1 w-full"
-                    />
-                  </div>
-                  <Button onClick={handleAddCategory}>Salvar</Button>
-                </div>
-              </DialogContent>
-            </Dialog>
+                </DialogContent>
+              </Dialog>
+            )}
           </div>
 
           <div className="grid gap-4">
@@ -160,14 +167,16 @@ export default function CategoriesAccounts() {
                         />
                         {category.name}
                       </CardTitle>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6 text-muted-foreground hover:text-red-500"
-                        onClick={() => deleteCategory(category.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      {canEdit && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 text-muted-foreground hover:text-red-500"
+                          onClick={() => deleteCategory(category.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
                     </div>
                   </CardHeader>
                   <CardContent>
@@ -190,32 +199,34 @@ export default function CategoriesAccounts() {
         <TabsContent value="accounts" className="mt-6">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-xl font-semibold">Contas Bancárias</h3>
-            <Dialog
-              open={isAccountDialogOpen}
-              onOpenChange={setIsAccountDialogOpen}
-            >
-              <DialogTrigger asChild>
-                <Button size="sm">
-                  <Plus className="mr-2 h-4 w-4" /> Nova Conta
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Adicionar Conta</DialogTitle>
-                </DialogHeader>
-                <div className="grid gap-4 py-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="accountName">Nome da Conta</Label>
-                    <Input
-                      id="accountName"
-                      value={newAccount}
-                      onChange={(e) => setNewAccount(e.target.value)}
-                    />
+            {canEdit && (
+              <Dialog
+                open={isAccountDialogOpen}
+                onOpenChange={setIsAccountDialogOpen}
+              >
+                <DialogTrigger asChild>
+                  <Button size="sm">
+                    <Plus className="mr-2 h-4 w-4" /> Nova Conta
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Adicionar Conta</DialogTitle>
+                  </DialogHeader>
+                  <div className="grid gap-4 py-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="accountName">Nome da Conta</Label>
+                      <Input
+                        id="accountName"
+                        value={newAccount}
+                        onChange={(e) => setNewAccount(e.target.value)}
+                      />
+                    </div>
+                    <Button onClick={handleAddAccount}>Salvar</Button>
                   </div>
-                  <Button onClick={handleAddAccount}>Salvar</Button>
-                </div>
-              </DialogContent>
-            </Dialog>
+                </DialogContent>
+              </Dialog>
+            )}
           </div>
 
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -225,14 +236,16 @@ export default function CategoriesAccounts() {
                   <CardTitle className="text-sm font-medium">
                     {account.name}
                   </CardTitle>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-6 w-6 text-muted-foreground hover:text-red-500"
-                    onClick={() => deleteAccount(account.id)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  {canEdit && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 text-muted-foreground hover:text-red-500"
+                      onClick={() => deleteAccount(account.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  )}
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">

@@ -9,11 +9,13 @@ import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { TransactionForm } from '@/components/transactions/TransactionForm'
 
 const Index = () => {
-  const { getFilteredTransactions, getFilteredIncomes } = useFinance()
+  const { getFilteredTransactions, getFilteredIncomes, checkPermission } =
+    useFinance()
   const [isNewTransactionOpen, setIsNewTransactionOpen] = useState(false)
 
   const hasData =
     getFilteredTransactions().length > 0 || getFilteredIncomes().length > 0
+  const canEdit = checkPermission('edit')
 
   if (!hasData) {
     return (
@@ -25,12 +27,15 @@ const Index = () => {
           Comece a controlar suas finanças
         </h2>
         <p className="text-muted-foreground max-w-md">
-          Não há transações ou receitas registradas para este mês. Adicione sua
-          primeira transação para ver o dashboard ganhar vida.
+          Não há transações ou receitas registradas para este mês.
+          {canEdit &&
+            ' Adicione sua primeira transação para ver o dashboard ganhar vida.'}
         </p>
-        <Button onClick={() => setIsNewTransactionOpen(true)}>
-          Adicionar Primeira Transação
-        </Button>
+        {canEdit && (
+          <Button onClick={() => setIsNewTransactionOpen(true)}>
+            Adicionar Primeira Transação
+          </Button>
+        )}
 
         <Dialog
           open={isNewTransactionOpen}
