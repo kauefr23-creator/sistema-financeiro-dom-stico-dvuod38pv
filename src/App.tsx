@@ -13,6 +13,7 @@ import Register from './pages/Register'
 import MasterDashboard from './pages/MasterDashboard'
 import UsersInvites from './pages/UsersInvites'
 import ActivityLogs from './pages/ActivityLogs'
+import Integrations from './pages/Integrations'
 import { FinanceProvider } from './context/FinanceContext'
 import { ProtectedRoute } from './components/ProtectedRoute'
 
@@ -44,6 +45,7 @@ const App = () => (
             />
             <Route path="/users" element={<UsersInvites />} />
             <Route path="/logs" element={<ActivityLogs />} />
+            <Route path="/integrations" element={<Integrations />} />
             <Route
               path="/master"
               element={

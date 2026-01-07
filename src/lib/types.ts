@@ -67,7 +67,14 @@ export interface ActivityLog {
   id: string
   userId: string
   userName: string
-  action: 'create' | 'update' | 'delete' | 'login' | 'invite'
+  action:
+    | 'create'
+    | 'update'
+    | 'delete'
+    | 'login'
+    | 'invite'
+    | 'sync'
+    | 'export'
   entity:
     | 'Transaction'
     | 'Income'
@@ -75,9 +82,28 @@ export interface ActivityLog {
     | 'Account'
     | 'User'
     | 'Invitation'
+    | 'Integration'
+    | 'Report'
   details: string
   timestamp: string
   companyId: string
+}
+
+export interface Integration {
+  id: string
+  name: string
+  provider: 'bank' | 'stripe' | 'paypal'
+  status: 'connected' | 'disconnected'
+  lastSync?: string
+  companyId: string
+}
+
+export type WidgetId = 'summary' | 'expenses' | 'upcoming' | 'trend'
+
+export interface DashboardWidgetConfig {
+  id: WidgetId
+  visible: boolean
+  order: number
 }
 
 export const transactionSchema = z.object({

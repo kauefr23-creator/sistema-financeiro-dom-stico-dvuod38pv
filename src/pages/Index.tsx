@@ -1,16 +1,24 @@
 import { SummaryCards } from '@/components/dashboard/SummaryCards'
 import { ExpensesPieChart } from '@/components/dashboard/ExpensesPieChart'
 import { UpcomingTransactions } from '@/components/dashboard/UpcomingTransactions'
+import { MonthlyTrendChart } from '@/components/dashboard/MonthlyTrendChart'
+import { DashboardCustomizer } from '@/components/dashboard/DashboardCustomizer'
 import { useFinance } from '@/context/FinanceContext'
 import { Button } from '@/components/ui/button'
 import { Plus } from 'lucide-react'
 import { useState } from 'react'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { TransactionForm } from '@/components/transactions/TransactionForm'
+import { WidgetId } from '@/lib/types'
+import { cn } from '@/lib/utils'
 
-const Index = () => {
-  const { getFilteredTransactions, getFilteredIncomes, checkPermission } =
-    useFinance()
+export default function Index() {
+  const {
+    getFilteredTransactions,
+    getFilteredIncomes,
+    checkPermission,
+    dashboardConfig,
+  } = useFinance()
   const [isNewTransactionOpen, setIsNewTransactionOpen] = useState(false)
 
   const hasData =
@@ -49,19 +57,59 @@ const Index = () => {
     )
   }
 
+  // Helper to render widget by ID
+  const renderWidget = (id: WidgetId) => {
+    switch (id) {
+      case 'summary':
+        return <SummaryCards />
+      case 'expenses':
+        return <ExpensesPieChart />
+      case 'upcoming':
+        return <UpcomingTransactions />
+      case 'trend':
+        return <MonthlyTrendChart />
+      default:
+        return null
+    }
+  }
+
+  const sortedWidgets = [...dashboardConfig]
+    .filter((w) => w.visible)
+    .sort((a, b) => a.order - b.order)
+
   return (
     <div className="space-y-6 animate-fade-in">
-      <SummaryCards />
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-        <div className="col-span-4 lg:col-span-4">
-          <ExpensesPieChart />
+      <div className="flex justify-between items-center">
+        <h2 className="text-3xl font-bold tracking-tight hidden sm:block">
+          Dashboard
+        </h2>
+        <div className="ml-auto">
+          <DashboardCustomizer />
         </div>
-        <div className="col-span-3 lg:col-span-3">
-          <UpcomingTransactions />
-        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-4">
+        {sortedWidgets.map((widget) => {
+          let colSpanClass = 'col-span-1'
+
+          // Define span based on widget type and screen size
+          if (widget.id === 'summary') {
+            colSpanClass = 'md:col-span-2 lg:col-span-7'
+          } else if (widget.id === 'trend') {
+            colSpanClass = 'md:col-span-2 lg:col-span-4'
+          } else if (widget.id === 'expenses') {
+            colSpanClass = 'md:col-span-1 lg:col-span-3'
+          } else if (widget.id === 'upcoming') {
+            colSpanClass = 'md:col-span-1 lg:col-span-3'
+          }
+
+          return (
+            <div key={widget.id} className={cn(colSpanClass, 'min-h-[300px]')}>
+              {renderWidget(widget.id)}
+            </div>
+          )
+        })}
       </div>
     </div>
   )
 }
-
-export default Index

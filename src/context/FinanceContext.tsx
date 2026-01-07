@@ -14,8 +14,10 @@ import {
   Invitation,
   ActivityLog,
   InviteFormValues,
+  Integration,
+  DashboardWidgetConfig,
 } from '@/lib/types'
-import { isSameMonth, parseISO } from 'date-fns'
+import { isSameMonth, parseISO, subMonths } from 'date-fns'
 import { toast } from 'sonner'
 
 interface FinanceContextType {
@@ -27,6 +29,8 @@ interface FinanceContextType {
   users: User[]
   invitations: Invitation[]
   activityLogs: ActivityLog[]
+  integrations: Integration[]
+  dashboardConfig: DashboardWidgetConfig[]
   currentDate: Date
   currentUser: User | null
   setCurrentDate: (date: Date) => void
@@ -45,6 +49,11 @@ interface FinanceContextType {
   deleteAccount: (id: string) => void
   sendInvitation: (data: InviteFormValues) => void
   deleteInvitation: (id: string) => void
+  connectIntegration: (provider: Integration['provider'], name: string) => void
+  disconnectIntegration: (id: string) => void
+  syncIntegration: (id: string) => void
+  updateDashboardConfig: (config: DashboardWidgetConfig[]) => void
+  exportActivityLogs: () => void
   getFilteredTransactions: () => Transaction[]
   getFilteredIncomes: () => Income[]
   login: (data: LoginFormValues) => Promise<User | null>
@@ -134,7 +143,6 @@ const INITIAL_CATEGORIES: Category[] = [
     color: 'hsl(var(--chart-5))',
     companyId: '1',
   },
-  // Company 2
   {
     id: '6',
     name: 'Operacional',
@@ -148,7 +156,6 @@ const INITIAL_ACCOUNTS: Account[] = [
   { id: '1', name: 'Nubank', companyId: '1' },
   { id: '2', name: 'Itaú', companyId: '1' },
   { id: '3', name: 'Carteira', companyId: '1' },
-  // Company 2
   { id: '4', name: 'Bradesco PJ', companyId: '2' },
 ]
 
@@ -188,7 +195,31 @@ const INITIAL_TRANSACTIONS: Transaction[] = [
     paymentDate: new Date().toISOString(),
     companyId: '1',
   },
-  // Company 2
+  // Past Month Mock Data for Trends
+  {
+    id: '10',
+    name: 'Compras Passadas',
+    amount: 1200,
+    date: subMonths(new Date(), 1).toISOString(),
+    dueDate: subMonths(new Date(), 1).toISOString(),
+    categoryId: '1',
+    accountId: '1',
+    status: 'paid',
+    paymentDate: subMonths(new Date(), 1).toISOString(),
+    companyId: '1',
+  },
+  {
+    id: '11',
+    name: 'Aluguel Passado',
+    amount: 1800,
+    date: subMonths(new Date(), 1).toISOString(),
+    dueDate: subMonths(new Date(), 1).toISOString(),
+    categoryId: '2',
+    accountId: '2',
+    status: 'paid',
+    paymentDate: subMonths(new Date(), 1).toISOString(),
+    companyId: '1',
+  },
   {
     id: '4',
     name: 'Servidor AWS',
@@ -211,7 +242,15 @@ const INITIAL_INCOMES: Income[] = [
     description: 'Salário Mensal',
     companyId: '1',
   },
-  // Company 2
+  // Past Month Mock Data
+  {
+    id: '10',
+    source: 'Salário Passado',
+    amount: 5000,
+    date: subMonths(new Date(), 1).toISOString(),
+    description: 'Salário Mês Anterior',
+    companyId: '1',
+  },
   {
     id: '2',
     source: 'Bônus',
@@ -246,6 +285,13 @@ const INITIAL_LOGS: ActivityLog[] = [
   },
 ]
 
+const INITIAL_WIDGET_CONFIG: DashboardWidgetConfig[] = [
+  { id: 'summary', visible: true, order: 0 },
+  { id: 'trend', visible: true, order: 1 },
+  { id: 'expenses', visible: true, order: 2 },
+  { id: 'upcoming', visible: true, order: 3 },
+]
+
 export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
@@ -263,6 +309,12 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({
   const [accounts, setAccounts] = useState<Account[]>(INITIAL_ACCOUNTS)
   const [currentDate, setCurrentDate] = useState<Date>(new Date())
 
+  // New Features States
+  const [integrations, setIntegrations] = useState<Integration[]>([])
+  const [dashboardConfig, setDashboardConfig] = useState<
+    DashboardWidgetConfig[]
+  >(INITIAL_WIDGET_CONFIG)
+
   // Helpers
   const logAction = (
     action: ActivityLog['action'],
@@ -278,7 +330,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({
       entity,
       details,
       timestamp: new Date().toISOString(),
-      companyId: currentUser.companyId || 'master', // Fallback for master
+      companyId: currentUser.companyId || 'master',
     }
     setActivityLogs((prev) => [newLog, ...prev])
   }
@@ -292,7 +344,6 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({
     if (currentUser.role === 'admin') return true
     if (action === 'view') return true
     if (action === 'edit' && currentUser.role === 'editor') return true
-    // Viewer can only view
     return false
   }
 
@@ -305,8 +356,6 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { password, ...safeUser } = user
       setCurrentUser(safeUser)
-      // We don't log login here because logAction needs currentUser state which is not updated immediately in this scope
-      // In a real app we'd use useEffect or a callback
       toast.success(`Bem-vindo, ${user.name}!`)
       return safeUser
     }
@@ -331,14 +380,13 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({
       name: data.name,
       email: data.email,
       password: data.password,
-      role: 'admin' as const, // Creator is admin
+      role: 'admin' as const,
       companyId: newCompanyId,
     }
 
     setCompanies((prev) => [...prev, newCompany])
     setUsers((prev) => [...prev, newUser])
 
-    // Login immediately
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { password, ...safeUser } = newUser
     setCurrentUser(safeUser)
@@ -354,13 +402,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({
   // Filters
   const getFilteredTransactions = () => {
     if (!currentUser) return []
-    // Master views logic handles in Dashboard, here standard view is restricted
-    if (currentUser.role === 'master' && !currentUser.companyId) {
-      // If master is not "simulating" a company, return empty or filtered by selected company in dashboard
-      // For general views (Transactions/Incomes pages), better to return nothing or all if desired
-      // Let's assume Master uses MasterDashboard for global view
-      return []
-    }
+    if (currentUser.role === 'master' && !currentUser.companyId) return []
 
     return transactions.filter(
       (t) =>
@@ -386,9 +428,43 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({
     (a) => a.companyId === currentUser?.companyId,
   )
 
+  // Budget Notification Logic
+  const checkBudgetExceeded = (
+    categoryId: string,
+    newAmount: number,
+    companyId: string,
+  ) => {
+    const category = categories.find((c) => c.id === categoryId)
+    if (!category) return
+
+    const currentMonthExpenses = transactions
+      .filter(
+        (t) =>
+          t.companyId === companyId &&
+          t.categoryId === categoryId &&
+          isSameMonth(parseISO(t.dueDate), new Date()),
+      )
+      .reduce((acc, t) => acc + t.amount, 0)
+
+    const totalExpected = currentMonthExpenses + newAmount
+
+    if (totalExpected > category.budget) {
+      toast.warning(
+        `Alerta de Orçamento: ${category.name} excedeu o limite de R$ ${category.budget}`,
+        {
+          description: `Gasto atual estimado: R$ ${totalExpected.toFixed(2)}`,
+          duration: 5000,
+        },
+      )
+    }
+  }
+
   // Actions
   const addTransaction = (data: TransactionFormValues) => {
     if (!currentUser?.companyId || !checkPermission('edit')) return
+
+    checkBudgetExceeded(data.categoryId, data.amount, currentUser.companyId)
+
     const newTransaction: Transaction = {
       id: Math.random().toString(36).substr(2, 9),
       name: data.name,
@@ -404,10 +480,27 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({
     setTransactions((prev) => [...prev, newTransaction])
     logAction('create', 'Transaction', `Created transaction "${data.name}"`)
     toast.success('Transação criada')
+
+    // Advanced Notification: Notify if Editor created it (Mock)
+    if (currentUser.role === 'editor') {
+      setTimeout(() => {
+        toast.info(`Admin notificado sobre nova transação de ${data.name}`)
+      }, 1000)
+    }
   }
 
   const updateTransaction = (id: string, data: TransactionFormValues) => {
     if (!checkPermission('edit')) return
+
+    // Check budget diff if category changed or amount increased
+    const existing = transactions.find((t) => t.id === id)
+    if (existing && currentUser?.companyId) {
+      const diff = data.amount - existing.amount
+      if (diff > 0 || existing.categoryId !== data.categoryId) {
+        checkBudgetExceeded(data.categoryId, data.amount, currentUser.companyId)
+      }
+    }
+
     setTransactions((prev) =>
       prev.map((t) =>
         t.id === id
@@ -571,6 +664,123 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({
     toast.success('Convite removido')
   }
 
+  // Integrations
+  const connectIntegration = (
+    provider: Integration['provider'],
+    name: string,
+  ) => {
+    if (!currentUser?.companyId || !checkPermission('admin')) return
+    const newIntegration: Integration = {
+      id: Math.random().toString(36).substr(2, 9),
+      name,
+      provider,
+      status: 'connected',
+      companyId: currentUser.companyId,
+      lastSync: new Date().toISOString(),
+    }
+    setIntegrations((prev) => [...prev, newIntegration])
+    logAction('create', 'Integration', `Connected to ${name}`)
+    toast.success(`Conectado ao ${name} com sucesso!`)
+  }
+
+  const disconnectIntegration = (id: string) => {
+    if (!checkPermission('admin')) return
+    const integration = integrations.find((i) => i.id === id)
+    setIntegrations((prev) => prev.filter((i) => i.id !== id))
+    logAction('delete', 'Integration', `Disconnected from ${integration?.name}`)
+    toast.success('Integração removida')
+  }
+
+  const syncIntegration = (id: string) => {
+    if (!checkPermission('edit')) return
+
+    // Simulate Sync process
+    setTimeout(() => {
+      const integration = integrations.find((i) => i.id === id)
+      if (
+        integration &&
+        currentUser?.companyId &&
+        categories.length > 0 &&
+        accounts.length > 0
+      ) {
+        // Add a mock transaction
+        const mockTx: Transaction = {
+          id: Math.random().toString(36).substr(2, 9),
+          name: `Compra Importada (${integration.name})`,
+          amount: Math.floor(Math.random() * 200) + 50,
+          date: new Date().toISOString(),
+          dueDate: new Date().toISOString(),
+          categoryId: categories[0].id, // First category
+          accountId: accounts[0].id, // First account
+          status: 'paid',
+          companyId: currentUser.companyId,
+          paymentDate: new Date().toISOString(),
+        }
+        setTransactions((prev) => [...prev, mockTx])
+        setIntegrations((prev) =>
+          prev.map((i) =>
+            i.id === id ? { ...i, lastSync: new Date().toISOString() } : i,
+          ),
+        )
+        logAction('sync', 'Integration', `Synced data from ${integration.name}`)
+        toast.success('Sincronização concluída! Novas transações importadas.')
+      }
+    }, 1500)
+  }
+
+  // Dashboard Config
+  const updateDashboardConfig = (config: DashboardWidgetConfig[]) => {
+    setDashboardConfig(config)
+    toast.success('Layout do dashboard salvo')
+  }
+
+  // Activity Log Export
+  const exportActivityLogs = () => {
+    if (!currentUser) return
+    const headers = [
+      'Timestamp',
+      'User',
+      'Action',
+      'Entity',
+      'Details',
+      'CompanyID',
+    ]
+
+    const logsToExport =
+      currentUser.role === 'master'
+        ? activityLogs
+        : activityLogs.filter((l) => l.companyId === currentUser.companyId)
+
+    const csvContent = [
+      headers.join(','),
+      ...logsToExport.map((log) =>
+        [
+          `"${log.timestamp}"`,
+          `"${log.userName}"`,
+          `"${log.action}"`,
+          `"${log.entity}"`,
+          `"${log.details}"`,
+          `"${log.companyId}"`,
+        ].join(','),
+      ),
+    ].join('\n')
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const link = document.createElement('a')
+    const url = URL.createObjectURL(blob)
+    link.setAttribute('href', url)
+    link.setAttribute(
+      'download',
+      `activity_logs_${new Date().toISOString()}.csv`,
+    )
+    link.style.visibility = 'hidden'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    logAction('export', 'Report', 'Exported activity logs')
+    toast.success('Download do log iniciado')
+  }
+
   return React.createElement(
     FinanceContext.Provider,
     {
@@ -583,6 +793,10 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({
         users,
         invitations,
         activityLogs,
+        integrations: integrations.filter(
+          (i) => i.companyId === currentUser?.companyId,
+        ),
+        dashboardConfig,
         currentDate,
         currentUser,
         setCurrentDate,
@@ -601,6 +815,11 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({
         deleteAccount,
         sendInvitation,
         deleteInvitation,
+        connectIntegration,
+        disconnectIntegration,
+        syncIntegration,
+        updateDashboardConfig,
+        exportActivityLogs,
         getFilteredTransactions,
         getFilteredIncomes,
         login,

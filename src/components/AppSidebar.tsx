@@ -21,6 +21,7 @@ import {
   ShieldAlert,
   Users,
   History,
+  Link as LinkIcon,
 } from 'lucide-react'
 import { Link, useLocation } from 'react-router-dom'
 import { useFinance } from '@/context/FinanceContext'
@@ -51,6 +52,12 @@ const items = [
     icon: Settings2,
     roles: ['admin', 'editor', 'viewer', 'master'],
   },
+  {
+    title: 'Integrações',
+    url: '/integrations',
+    icon: LinkIcon,
+    roles: ['admin', 'editor', 'master'],
+  },
 ]
 
 export function AppSidebar() {
@@ -58,6 +65,10 @@ export function AppSidebar() {
   const { currentUser, logout, checkPermission } = useFinance()
 
   const canManageUsers = checkPermission('admin')
+
+  const filteredItems = items.filter(
+    (item) => currentUser?.role && item.roles.includes(currentUser.role),
+  )
 
   return (
     <Sidebar collapsible="icon" className="border-r">
@@ -97,7 +108,7 @@ export function AppSidebar() {
           <SidebarGroupLabel>Menu Principal</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {items.map((item) => (
+              {filteredItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton
                     asChild

@@ -27,9 +27,12 @@ import { format, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { ActivityLog } from '@/lib/types'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Download } from 'lucide-react'
 
 export default function ActivityLogs() {
-  const { activityLogs, currentUser, companies } = useFinance()
+  const { activityLogs, currentUser, companies, exportActivityLogs } =
+    useFinance()
   const [filterAction, setFilterAction] = useState<string>('all')
   const [filterEntity, setFilterEntity] = useState<string>('all')
   const [searchTerm, setSearchTerm] = useState('')
@@ -61,6 +64,10 @@ export default function ActivityLogs() {
         return 'bg-red-500 hover:bg-red-600'
       case 'invite':
         return 'bg-purple-500 hover:bg-purple-600'
+      case 'sync':
+        return 'bg-cyan-500 hover:bg-cyan-600'
+      case 'export':
+        return 'bg-gray-600 hover:bg-gray-700'
       default:
         return 'bg-gray-500'
     }
@@ -73,13 +80,19 @@ export default function ActivityLogs() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="flex flex-col gap-2">
-        <h2 className="text-3xl font-bold tracking-tight">
-          Registro de Atividades
-        </h2>
-        <p className="text-muted-foreground">
-          Histórico completo de ações realizadas no sistema.
-        </p>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h2 className="text-3xl font-bold tracking-tight">
+            Registro de Atividades
+          </h2>
+          <p className="text-muted-foreground">
+            Histórico completo de ações realizadas no sistema.
+          </p>
+        </div>
+        <Button onClick={exportActivityLogs} variant="outline">
+          <Download className="mr-2 h-4 w-4" />
+          Exportar CSV
+        </Button>
       </div>
 
       <div className="flex flex-col sm:flex-row gap-4">
@@ -99,6 +112,8 @@ export default function ActivityLogs() {
             <SelectItem value="update">Edição</SelectItem>
             <SelectItem value="delete">Exclusão</SelectItem>
             <SelectItem value="invite">Convite</SelectItem>
+            <SelectItem value="sync">Sincronização</SelectItem>
+            <SelectItem value="export">Exportação</SelectItem>
           </SelectContent>
         </Select>
         <Select value={filterEntity} onValueChange={setFilterEntity}>
@@ -113,6 +128,7 @@ export default function ActivityLogs() {
             <SelectItem value="Account">Conta</SelectItem>
             <SelectItem value="User">Usuário</SelectItem>
             <SelectItem value="Invitation">Convite</SelectItem>
+            <SelectItem value="Integration">Integração</SelectItem>
           </SelectContent>
         </Select>
       </div>
