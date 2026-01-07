@@ -8,7 +8,11 @@ import Transactions from './pages/Transactions'
 import Incomes from './pages/Incomes'
 import CategoriesAccounts from './pages/CategoriesAccounts'
 import NotFound from './pages/NotFound'
+import Login from './pages/Login'
+import Register from './pages/Register'
+import MasterDashboard from './pages/MasterDashboard'
 import { FinanceProvider } from './context/FinanceContext'
+import { ProtectedRoute } from './components/ProtectedRoute'
 
 const App = () => (
   <BrowserRouter
@@ -19,13 +23,30 @@ const App = () => (
         <Toaster />
         <Sonner />
         <Routes>
-          <Route element={<Layout />}>
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+
+          <Route
+            element={
+              <ProtectedRoute>
+                <Layout />
+              </ProtectedRoute>
+            }
+          >
             <Route path="/" element={<Index />} />
             <Route path="/transactions" element={<Transactions />} />
             <Route path="/incomes" element={<Incomes />} />
             <Route
               path="/categories-accounts"
               element={<CategoriesAccounts />}
+            />
+            <Route
+              path="/master"
+              element={
+                <ProtectedRoute requireMaster>
+                  <MasterDashboard />
+                </ProtectedRoute>
+              }
             />
           </Route>
           <Route path="*" element={<NotFound />} />

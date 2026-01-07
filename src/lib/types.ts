@@ -1,17 +1,33 @@
 import { z } from 'zod'
 
 export type TransactionStatus = 'paid' | 'pending'
+export type Role = 'master' | 'admin' | 'user'
+
+export interface Company {
+  id: string
+  name: string
+}
+
+export interface User {
+  id: string
+  name: string
+  email: string
+  role: Role
+  companyId?: string
+}
 
 export interface Category {
   id: string
   name: string
   budget: number
   color: string
+  companyId: string
 }
 
 export interface Account {
   id: string
   name: string
+  companyId: string
 }
 
 export interface Transaction {
@@ -24,6 +40,7 @@ export interface Transaction {
   accountId: string
   status: TransactionStatus
   paymentDate?: string
+  companyId: string
 }
 
 export type IncomeSource = 'Salário' | 'Bônus' | 'Extras' | 'Mês Anterior'
@@ -34,6 +51,7 @@ export interface Income {
   description?: string
   amount: number
   date: string // ISO string
+  companyId: string
 }
 
 export const transactionSchema = z.object({
@@ -64,3 +82,21 @@ export const categorySchema = z.object({
 })
 
 export type CategoryFormValues = z.infer<typeof categorySchema>
+
+export const loginSchema = z.object({
+  email: z.string().email('Email inválido'),
+  password: z.string().min(6, 'A senha deve ter no mínimo 6 caracteres'),
+})
+
+export type LoginFormValues = z.infer<typeof loginSchema>
+
+export const registerSchema = z.object({
+  name: z.string().min(2, 'Nome deve ter no mínimo 2 caracteres'),
+  email: z.string().email('Email inválido'),
+  password: z.string().min(6, 'A senha deve ter no mínimo 6 caracteres'),
+  companyName: z
+    .string()
+    .min(2, 'Nome da empresa deve ter no mínimo 2 caracteres'),
+})
+
+export type RegisterFormValues = z.infer<typeof registerSchema>

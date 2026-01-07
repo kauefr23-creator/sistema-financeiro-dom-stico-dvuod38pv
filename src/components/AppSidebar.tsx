@@ -18,10 +18,12 @@ import {
   PiggyBank,
   Settings2,
   Wallet,
-  Menu,
+  LogOut,
+  ShieldAlert,
 } from 'lucide-react'
 import { Link, useLocation } from 'react-router-dom'
-import { cn } from '@/lib/utils'
+import { useFinance } from '@/context/FinanceContext'
+import { Button } from '@/components/ui/button'
 
 const items = [
   {
@@ -48,6 +50,7 @@ const items = [
 
 export function AppSidebar() {
   const location = useLocation()
+  const { currentUser, logout } = useFinance()
 
   return (
     <Sidebar collapsible="icon" className="border-r">
@@ -60,6 +63,29 @@ export function AppSidebar() {
         </div>
       </SidebarHeader>
       <SidebarContent>
+        {currentUser?.role === 'master' && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Administração</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={location.pathname === '/master'}
+                    tooltip="Master Dashboard"
+                    className="text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/20"
+                  >
+                    <Link to="/master">
+                      <ShieldAlert className="h-4 w-4" />
+                      <span>Master Overview</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
+
         <SidebarGroup>
           <SidebarGroupLabel>Menu Principal</SidebarGroupLabel>
           <SidebarGroupContent>
@@ -83,9 +109,27 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
       <SidebarFooter>
-        <div className="p-4 text-xs text-muted-foreground group-data-[collapsible=icon]:hidden">
-          <p>v1.0.0</p>
-          <p>© 2026 Finance App</p>
+        <div className="p-4 group-data-[collapsible=icon]:hidden flex flex-col gap-2">
+          <div className="text-xs text-muted-foreground">
+            <p className="font-semibold text-foreground truncate">
+              {currentUser?.name}
+            </p>
+            <p className="truncate">{currentUser?.email}</p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full justify-start text-xs h-8"
+            onClick={logout}
+          >
+            <LogOut className="mr-2 h-3 w-3" />
+            Sair
+          </Button>
+        </div>
+        <div className="p-2 group-data-[collapsible=icon]:flex hidden justify-center">
+          <Button variant="ghost" size="icon" onClick={logout} title="Sair">
+            <LogOut className="h-4 w-4" />
+          </Button>
         </div>
       </SidebarFooter>
       <SidebarRail />
