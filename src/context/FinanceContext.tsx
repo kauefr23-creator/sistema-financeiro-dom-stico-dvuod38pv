@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react'
+import React, { createContext, useContext, useState } from 'react'
 import {
   Transaction,
   Income,
@@ -65,6 +65,7 @@ interface FinanceContextType {
   ) => boolean
   resetUserPassword: (userId: string) => string | null
   sendPasswordResetLink: (email: string) => void
+  updateUserStatus: (userId: string, status: User['status']) => void
 }
 
 const FinanceContext = createContext<FinanceContextType | undefined>(undefined)
@@ -83,6 +84,7 @@ const INITIAL_USERS: (User & { password: string })[] = [
     password: 'password',
     role: 'admin',
     companyId: '1',
+    status: 'active',
   },
   {
     id: '2',
@@ -90,6 +92,7 @@ const INITIAL_USERS: (User & { password: string })[] = [
     email: 'master@demo.com',
     password: 'password',
     role: 'master',
+    status: 'active',
   },
   {
     id: '3',
@@ -98,6 +101,7 @@ const INITIAL_USERS: (User & { password: string })[] = [
     password: 'password',
     role: 'editor',
     companyId: '1',
+    status: 'active',
   },
   {
     id: '4',
@@ -106,6 +110,16 @@ const INITIAL_USERS: (User & { password: string })[] = [
     password: 'password',
     role: 'viewer',
     companyId: '1',
+    status: 'pending',
+  },
+  {
+    id: '5',
+    name: 'Locked User',
+    email: 'locked@demo.com',
+    password: 'password',
+    role: 'viewer',
+    companyId: '1',
+    status: 'locked',
   },
 ]
 
@@ -355,6 +369,10 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({
       (u) => u.email === data.email && u.password === data.password,
     )
     if (user) {
+      if (user.status === 'locked') {
+        toast.error('Conta bloqueada. Contate o administrador.')
+        return null
+      }
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { password, ...safeUser } = user
       setCurrentUser(safeUser)
@@ -384,6 +402,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({
       password: data.password,
       role: 'admin' as const,
       companyId: newCompanyId,
+      status: 'active' as const,
     }
 
     setCompanies((prev) => [...prev, newCompany])
@@ -807,6 +826,22 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({
     }, 500)
   }
 
+  const updateUserStatus = (userId: string, status: User['status']) => {
+    if (!checkPermission('admin')) return
+    setUsers((prev) =>
+      prev.map((u) => (u.id === userId ? { ...u, status } : u)),
+    )
+    const user = users.find((u) => u.id === userId)
+    logAction(
+      'status_change',
+      'User',
+      `Changed status for ${user?.email || userId} to ${status}`,
+    )
+    toast.success(
+      `Status do usuário ${status === 'locked' ? 'bloqueado' : 'atualizado'}`,
+    )
+  }
+
   return React.createElement(
     FinanceContext.Provider,
     {
@@ -854,6 +889,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({
         checkPermission,
         resetUserPassword,
         sendPasswordResetLink,
+        updateUserStatus,
       },
     },
     children,

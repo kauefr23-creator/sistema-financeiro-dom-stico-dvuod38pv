@@ -51,10 +51,14 @@ import {
   KeyRound,
   Send,
   Search,
+  Lock,
+  Unlock,
+  ShieldCheck,
+  AlertTriangle,
 } from 'lucide-react'
 import { format, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { InviteFormValues, User } from '@/lib/types'
+import { InviteFormValues } from '@/lib/types'
 import { toast } from 'sonner'
 import { Navigate } from 'react-router-dom'
 import {
@@ -80,6 +84,7 @@ export default function UsersInvites() {
     checkPermission,
     resetUserPassword,
     sendPasswordResetLink,
+    updateUserStatus,
   } = useFinance()
   const [isInviteOpen, setIsInviteOpen] = useState(false)
   const [inviteData, setInviteData] = useState<Partial<InviteFormValues>>({
@@ -151,6 +156,37 @@ export default function UsersInvites() {
         return <Badge className="bg-slate-500">Viewer</Badge>
       default:
         return <Badge variant="outline">{role}</Badge>
+    }
+  }
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'active':
+        return (
+          <Badge
+            variant="outline"
+            className="bg-emerald-50 text-emerald-700 border-emerald-200 gap-1"
+          >
+            <ShieldCheck className="h-3 w-3" /> Ativo
+          </Badge>
+        )
+      case 'locked':
+        return (
+          <Badge variant="destructive" className="gap-1">
+            <Lock className="h-3 w-3" /> Bloqueado
+          </Badge>
+        )
+      case 'pending':
+        return (
+          <Badge
+            variant="secondary"
+            className="bg-yellow-100 text-yellow-800 hover:bg-yellow-200 gap-1"
+          >
+            <AlertTriangle className="h-3 w-3" /> Pendente
+          </Badge>
+        )
+      default:
+        return <Badge variant="outline">{status}</Badge>
     }
   }
 
@@ -232,9 +268,9 @@ export default function UsersInvites() {
       <div className="grid gap-6">
         <Card>
           <CardHeader>
-            <CardTitle>Membros Ativos</CardTitle>
+            <CardTitle>Painel de Usuários</CardTitle>
             <CardDescription>
-              Lista completa de usuários com acesso ao sistema.
+              Lista completa de usuários com status e controles de segurança.
             </CardDescription>
             <div className="flex flex-col sm:flex-row gap-4 mt-4">
               <div className="relative flex-1">
@@ -274,6 +310,7 @@ export default function UsersInvites() {
                   <TableHead>Email</TableHead>
                   {isMaster && <TableHead>Empresa</TableHead>}
                   <TableHead>Função</TableHead>
+                  <TableHead>Status</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
@@ -281,7 +318,7 @@ export default function UsersInvites() {
                 {filteredUsers.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={isMaster ? 5 : 4}
+                      colSpan={isMaster ? 6 : 5}
                       className="text-center h-24 text-muted-foreground"
                     >
                       Nenhum usuário encontrado.
@@ -296,6 +333,7 @@ export default function UsersInvites() {
                         <TableCell>{getCompanyName(user.companyId)}</TableCell>
                       )}
                       <TableCell>{getRoleBadge(user.role)}</TableCell>
+                      <TableCell>{getStatusBadge(user.status)}</TableCell>
                       <TableCell className="text-right">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
@@ -314,6 +352,82 @@ export default function UsersInvites() {
                               Copiar Email
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
+
+                            {user.status === 'locked' ? (
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <DropdownMenuItem
+                                    onSelect={(e) => e.preventDefault()}
+                                  >
+                                    <Unlock className="mr-2 h-4 w-4" />{' '}
+                                    Desbloquear
+                                  </DropdownMenuItem>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>
+                                      Desbloquear Usuário?
+                                    </AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      O usuário <b>{user.name}</b> poderá fazer
+                                      login novamente.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>
+                                      Cancelar
+                                    </AlertDialogCancel>
+                                    <AlertDialogAction
+                                      onClick={() =>
+                                        updateUserStatus(user.id, 'active')
+                                      }
+                                      className="bg-emerald-600 hover:bg-emerald-700"
+                                    >
+                                      Confirmar
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            ) : (
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <DropdownMenuItem
+                                    onSelect={(e) => e.preventDefault()}
+                                    className="text-red-600 focus:text-red-600"
+                                  >
+                                    <Lock className="mr-2 h-4 w-4" /> Bloquear
+                                    Acesso
+                                  </DropdownMenuItem>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>
+                                      Bloquear Usuário?
+                                    </AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      O usuário <b>{user.name}</b> será impedido
+                                      de acessar o sistema até ser desbloqueado.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>
+                                      Cancelar
+                                    </AlertDialogCancel>
+                                    <AlertDialogAction
+                                      onClick={() =>
+                                        updateUserStatus(user.id, 'locked')
+                                      }
+                                      className="bg-red-600 hover:bg-red-700"
+                                    >
+                                      Bloquear
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            )}
+
+                            <DropdownMenuSeparator />
+
                             <AlertDialog>
                               <AlertDialogTrigger asChild>
                                 <DropdownMenuItem

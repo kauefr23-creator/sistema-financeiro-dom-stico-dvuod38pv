@@ -14,6 +14,7 @@ export interface User {
   email: string
   role: Role
   companyId?: string
+  status: 'active' | 'pending' | 'locked'
 }
 
 export interface Category {
@@ -76,6 +77,7 @@ export interface ActivityLog {
     | 'sync'
     | 'export'
     | 'password_reset'
+    | 'status_change'
   entity:
     | 'Transaction'
     | 'Income'
